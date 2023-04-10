@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include <sound.h>
 
 IM2_DEFINE_ISR(isr) {}
 #define TABLE_HIGH_BYTE        ((unsigned int)0xD0)
@@ -154,7 +155,7 @@ int main()
   intrinsic_ei();
 
   zx_border(INK_YELLOW);
-
+  
   sp1_Initialize( SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
                   INK_YELLOW | PAPER_BLACK,' ' );
 				  
@@ -276,9 +277,12 @@ int main()
 			vertline(sp1XPos, sp1YPos, 16);
 			vertline(sp1XPos+7, sp1YPos, 16);
 			
+			bit_beep(10,1000);
+			
 			if ((sp1XPos+7 >= sp2XPos) && (sp1XPos <= sp2XPos+7))
 			{
 				score+=100;
+				bit_beep(100,500);
 			}	
 			sp1XPosPrev = sp1XPos;
 			sp1YPosPrev = sp1YPos;
@@ -296,21 +300,27 @@ int main()
 			sp2XPos=100;
 			sp1YPos=160;
 			sp2YPos=20;			
+			
+			bit_beep(200,700);				
+			bit_beep(200,500);				
+			
+
 			if (lives<= 0) 
 			{
 				dead = 1;
 				if (score > highscore) 
 				{
 					highscore = score;						
-				}
+				}				
 				
 				sp1_SetPrintPos(&pss, 10, 10);   
 				sp1_PrintString(&pss, "Game Over");
 				
-				int x = 0;
-				while(x < INT_MAX)
+				
+				for (short x = 0; x < 4; x++)
 				{
-					x++;
+					bit_beep(200,500);				
+					bit_beep(200,250);				
 				}
 			}
 		}	
