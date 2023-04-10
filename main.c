@@ -5,6 +5,11 @@
 
 // zcc +zx -vn -m -startup=31 -clib=sdcc_iy main.c sprite.asm -o main -create-app
 
+// really useful link to how to handle sprites:
+// https://www.z88dk.org/wiki/doku.php?id=libnew:examples:sp1_ex1
+// link to how to draw lines etc:
+// https://github.com/z88dk/z88dk/blob/master/doc/ZXSpectrumZSDCCnewlib_03_SimpleGraphics.md
+
 #pragma output REGISTER_SP = 0xD000
 
 #include <arch/zx.h>
@@ -14,6 +19,8 @@
 #include <im2.h>
 #include <string.h>
 #include <input.h>
+#include <math.h>
+#include <stdlib.h>
 
 IM2_DEFINE_ISR(isr) {}
 #define TABLE_HIGH_BYTE        ((unsigned int)0xD0)
@@ -29,6 +36,41 @@ extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
 
 struct sp1_Rect full_screen = {0, 0, 32, 24};
+
+void plot(unsigned char x, unsigned char y)
+{
+	*zx_pxy2saddr(x,y) |= zx_px2bitmask(x);
+}
+
+void line(unsigned char x0, unsigned char y0, unsigned char x1, unsigned char y1)
+{	
+	unsigned char dx  = abs(x1-x0);
+	unsigned char dy  = abs(y1-y0);	
+	signed   char sx  = x0<x1 ? 1 : -1;
+	signed   char sy  = y0<y1 ? 1 : -1;
+	int           err = (dx>dy ? dx : -dy)/2;
+	int           e2;
+
+	while (1)
+	{
+		plot(x0,y0);
+		if (x0==x1 && y0==y1) break;
+
+		e2 = err;
+		if (e2 >-dx) { err -= dy; x0 += sx; }
+		if (e2 < dy) { err += dx; y0 += sy; }
+	}
+}
+
+unsigned char colour;
+unsigned char cmask;
+
+void colourSpr(unsigned int count, struct sp1_cs *c)
+{
+   c->attr_mask = cmask;
+   c->attr = colour;
+}
+
 
 int main()
 {
@@ -56,8 +98,7 @@ int main()
   zx_border(INK_YELLOW);
 
   sp1_Initialize( SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
-                  INK_YELLOW | PAPER_BLACK,
-                  ' ' );
+                  INK_YELLOW | PAPER_BLACK,' ' );
 				  
   sp1_Invalidate(&full_screen);
  
@@ -65,7 +106,14 @@ int main()
   spaceship2 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship2_masked, 0);
 
   sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+  colour = (INK_CYAN | PAPER_BLACK);   
+  cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
+  sp1_IterateSprChar(spaceship1, colourSpr);
+	  
   sp1_AddColSpr(spaceship2, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+  colour = (INK_RED | PAPER_BLACK);   
+  cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
+  sp1_IterateSprChar(spaceship2, colourSpr);
 
   sp1XPos=10;
   sp2XPos=100;
@@ -107,8 +155,10 @@ int main()
 	if (sp1YPosInc<=-MAX_SPEED_SACESHIP_1) sp1YPosInc = -MAX_SPEED_SACESHIP_1;
 	if (sp1YPosInc>=MAX_SPEED_SACESHIP_1) sp1YPosInc = MAX_SPEED_SACESHIP_1;
 	
-    	
-	
+	if (fire == 1)
+	{
+		line(sp1XPos, sp1YPos, sp2XPos, sp2YPos);
+	}
 	fire = 0;
   }
 }
