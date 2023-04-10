@@ -23,6 +23,8 @@ IM2_DEFINE_ISR(isr) {}
 #define TABLE_ADDR             ((void*)(TABLE_HIGH_BYTE*UI_256))
 #define JUMP_POINT             ((unsigned char*)( (unsigned int)(JUMP_POINT_HIGH_BYTE*UI_256) + JUMP_POINT_HIGH_BYTE ))
 
+#define MAX_SPEED_SACESHIP_1  6
+
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
 
@@ -36,8 +38,8 @@ int main()
   struct sp1_ss  *spaceship2;
 
   unsigned char sp1XPos;
-  unsigned char sp1XPosInc;
-  unsigned char sp1YPosInc;
+  short sp1XPosInc;
+  short sp1YPosInc;
   
   unsigned char sp2XPos;
   unsigned char sp1YPos;
@@ -77,10 +79,10 @@ int main()
 	
 	switch (c)
 	{
-		case 'o' : sp1XPosInc=-1; break;
-		case 'p' : sp1XPosInc=1; break;
-		case 'q' : sp1YPosInc=-1; break;
-		case 'a' : sp1YPosInc=1; break;		
+		case 'o' : sp1XPosInc-=1; break;
+		case 'p' : sp1XPosInc+=1; break;
+		case 'q' : sp1YPosInc-=1; break;
+		case 'a' : sp1YPosInc+=1; break;		
 		case ' ' : fire=1; break;
 		default:
 		break;
@@ -95,12 +97,17 @@ int main()
     sp1_UpdateNow();
 	
 	// limit the xy position to screen area and "bounce" off edges
-	if (sp1XPos<=0) sp1XPosInc = 1;
-	if (sp1XPos>=248) sp1XPosInc = -1;
-	if (sp1YPos<=0) sp1YPosInc = 1;
-	if (sp1YPos>=184) sp1YPosInc = -1;
+	if (sp1XPos<=-sp1XPosInc) { sp1XPosInc = 1; sp1XPos = 0; }
+	if (sp1XPos>=248-sp1XPosInc) { sp1XPosInc = -1; sp1XPos = 248; }
+	if (sp1YPos<=0) { sp1YPosInc = 1; sp1YPos = 0; }
+    if (sp1YPos>=184) { sp1YPosInc = -1; sp1YPos = 184; }
 	
+	if (sp1XPosInc<=-MAX_SPEED_SACESHIP_1) sp1XPosInc = -MAX_SPEED_SACESHIP_1;
+	if (sp1XPosInc>=MAX_SPEED_SACESHIP_1) sp1XPosInc = MAX_SPEED_SACESHIP_1;
+	if (sp1YPosInc<=-MAX_SPEED_SACESHIP_1) sp1YPosInc = -MAX_SPEED_SACESHIP_1;
+	if (sp1YPosInc>=MAX_SPEED_SACESHIP_1) sp1YPosInc = MAX_SPEED_SACESHIP_1;
 	
+    	
 	
 	fire = 0;
   }
