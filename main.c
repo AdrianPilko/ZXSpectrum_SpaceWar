@@ -99,8 +99,8 @@ int main()
 	// limit the xy position to screen area and "bounce" off edges
 	if (sp1XPos<=-sp1XPosInc) { sp1XPosInc = 1; sp1XPos = 0; }
 	if (sp1XPos>=248-sp1XPosInc) { sp1XPosInc = -1; sp1XPos = 248; }
-	if (sp1YPos<=0) { sp1YPosInc = 1; sp1YPos = 0; }
-    if (sp1YPos>=184) { sp1YPosInc = -1; sp1YPos = 184; }
+	if (sp1YPos<=-sp1YPosInc) { sp1YPosInc = 1; sp1YPos = 0; }
+    if (sp1YPos>=184-sp1YPosInc) { sp1YPosInc = -1; sp1YPos = 184; }
 	
 	if (sp1XPosInc<=-MAX_SPEED_SACESHIP_1) sp1XPosInc = -MAX_SPEED_SACESHIP_1;
 	if (sp1XPosInc>=MAX_SPEED_SACESHIP_1) sp1XPosInc = MAX_SPEED_SACESHIP_1;
