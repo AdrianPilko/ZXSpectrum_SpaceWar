@@ -157,7 +157,8 @@ int main()
 	
 	if (fire == 1)
 	{
-		line(sp1XPos, sp1YPos, sp2XPos, sp2YPos);
+		//line(sp1XPos, sp1YPos, sp2XPos, sp2YPos);		
+		line(sp1XPos, sp1YPos, sp1XPos, 0);
 	}
 	fire = 0;
   }
