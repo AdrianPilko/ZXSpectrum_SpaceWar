@@ -35,6 +35,7 @@ IM2_DEFINE_ISR(isr) {}
 
 #define MAX_SPEED_SACESHIP_1  6
 #define FIRE_CUTTOUT 6
+#define MAX_ENEMY 20
 
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
@@ -90,23 +91,26 @@ void clearVertline(unsigned char x0, unsigned char y0, unsigned char y1)
 	}
 }
 
-void printScores(struct sp1_pss* pss, int score, int highScore, short lives)
+void printScores(struct sp1_pss* pss, int score, int highScore, unsigned char lives, unsigned char level)
 {
-	char buffer[7];
+	char buffer[8];
 	sp1_SetPrintPos(pss, 0, 0);   
 	sp1_PrintString(pss, "1UP Score--SPACE-WAR--High Score");
 	sp1_SetPrintPos(pss, 1, 0);   
-	sp1_PrintString(pss, "           Lives                ");
+	sp1_PrintString(pss, "         Lives   Level          ");
 	
 	
-	sprintf(buffer, "%d", score);
-	sp1_SetPrintPos(pss, 1, 3);   
+	sprintf(buffer, "%06d", score);
+	sp1_SetPrintPos(pss, 1, 1);   
 	sp1_PrintString(pss, buffer);
-	sprintf(buffer, "%d", highScore);
-	sp1_SetPrintPos(pss, 1, 25);   	
+	sprintf(buffer, "%06d", highScore);
+	sp1_SetPrintPos(pss, 1, 26);   	
 	sp1_PrintString(pss, buffer);
-	sp1_SetPrintPos(pss, 1, 17);   
-	sprintf(buffer, "%d", lives);
+	sp1_SetPrintPos(pss, 1, 15);   	
+	sprintf(buffer, "%02d", lives);
+	sp1_PrintString(pss, buffer);
+	sp1_SetPrintPos(pss, 1, 23);   	
+	sprintf(buffer, "%d", level);
 	sp1_PrintString(pss, buffer);
 }
 
@@ -122,17 +126,19 @@ void colourSpr(unsigned int count, struct sp1_cs *c)
 
 int main()
 {
+  unsigned char enemyCount;
   int score;
   int highscore;
-  int dead;  
-  short lives;
+  unsigned char dead;  
+  unsigned char lives;
+  unsigned char level;
   
   unsigned char countdownTillFireAvailable;
   unsigned char overWriteLine;
   unsigned char c;
   
   struct sp1_ss  *spaceship1;
-  struct sp1_ss  *spaceship2;
+  struct sp1_ss  *enemyArray[MAX_ENEMY];
 
   unsigned char sp1XPos;
   short sp1XPosInc;
@@ -155,25 +161,7 @@ int main()
   intrinsic_ei();
 
   zx_border(INK_YELLOW);
-  
-  sp1_Initialize( SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
-                  INK_YELLOW | PAPER_BLACK,' ' );
-				  
-  sp1_Invalidate(&full_screen);
- 
-  spaceship1 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship1_masked, 0);
-  spaceship2 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship2_masked, 0);
-
-  sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-  colour = (INK_CYAN | PAPER_BLACK);   
-  cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
-  sp1_IterateSprChar(spaceship1, colourSpr);
-	  
-  sp1_AddColSpr(spaceship2, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-  colour = (INK_RED | PAPER_BLACK);   
-  cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
-  sp1_IterateSprChar(spaceship2, colourSpr);
-  
+   
 	  
   struct sp1_pss pss = {
 	   &full_screen,   // print confined to this rectangle
@@ -194,17 +182,22 @@ int main()
     sp1_Invalidate(&full_screen);
  
     spaceship1 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship1_masked, 0);
-    spaceship2 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship2_masked, 0);
-
     sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
     colour = (INK_CYAN | PAPER_BLACK);   
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
     sp1_IterateSprChar(spaceship1, colourSpr);
+	
+	level = 1;
+	for (enemyCount=0;enemyCount<level; enemyCount++)
+	{
+		enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship2_masked, 0);
+		sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+		colour = (INK_RED | PAPER_BLACK);   
+		cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
+		sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
+	}
 	  
-    sp1_AddColSpr(spaceship2, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-    colour = (INK_RED | PAPER_BLACK);   
-    cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
-    sp1_IterateSprChar(spaceship2, colourSpr);
+
   
 	// initialise everything else  
 	sp1XPos=10;
@@ -220,12 +213,13 @@ int main()
 	score = 0;
 	dead = 0;   /// dead = 1 not dead = 0;
 	lives = 3;
+	level = 1;
 	 
-	printScores(&pss, score, highscore, lives);
+	printScores(&pss, score, highscore, lives,level);
 	   
 	while(dead == 0) 
 	{
-		printScores(&pss, score, highscore,lives);
+		printScores(&pss, score, highscore,lives, level);
 		
 		c = in_inkey();
 		
@@ -245,7 +239,10 @@ int main()
 		sp2YPos = sp2YPosInc + sp2YPos;
 		
 		sp1_MoveSprPix(spaceship1, &full_screen, 0, sp1XPos, sp1YPos);
-		sp1_MoveSprPix(spaceship2, &full_screen, 0, sp2XPos, sp2YPos);
+		for (enemyCount=0; enemyCount<level; enemyCount++)
+		{
+			sp1_MoveSprPix(enemyArray[enemyCount], &full_screen, 0, sp2XPos+(enemyCount*30), sp2YPos+(enemyCount*30));
+		}
 		intrinsic_halt();
 		sp1_UpdateNow();
 		
@@ -281,8 +278,24 @@ int main()
 			
 			if ((sp1XPos+7 >= sp2XPos) && (sp1XPos <= sp2XPos+7))
 			{
-				score+=100;
+				score+=100;				
 				bit_beep(100,500);
+				// new life every 10000 
+				if (score % 10000 == 0) 
+				{
+					lives++; 
+				}				
+				// level up
+				if (score % 100 == 0) 
+				{
+					enemyCount=level;					
+					enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int)spaceship2_masked, 0);
+					sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+					colour = (INK_RED | PAPER_BLACK);   
+					cmask = SP1_AMASK_INK & SP1_AMASK_PAPER; 
+					sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);					
+					level++;
+				}
 			}	
 			sp1XPosPrev = sp1XPos;
 			sp1YPosPrev = sp1YPos;
@@ -290,7 +303,7 @@ int main()
 			countdownTillFireAvailable = FIRE_CUTTOUT;
 		}
 		fire = 0;
-		// check collision, this doesn't scale well to multiple enemys
+		// check collision, this doesn't scale well to multiple enemys		
 		if ((sp1XPos+7 >= sp2XPos) && (sp1XPos <= sp2XPos+7) &&
 			 (sp1YPos+7 >= sp2YPos) && (sp1YPos <= sp2YPos+7))
 		{
