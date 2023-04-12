@@ -318,7 +318,7 @@ int main() {
 		{
           //if ((sp1XPos + 7 >= sp2XPos[enemyCount]) && (sp1XPos <= sp2XPos[enemyCount] + 7)) 
 		  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
-			  (sp1YPos > sp2YPos[enemyCount] ))
+			  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos > sp2YPos[enemyCount]-50))
 		  {
             scoreIncrease = 1;
           }
