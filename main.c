@@ -45,7 +45,7 @@ IM2_DEFINE_ISR(isr) {}
 
 
 #define MAX_SPEED_SACESHIP_1 6
-#define FIRE_CUTTOUT 3
+#define FIRE_CUTTOUT 1
 #define MAX_ENEMY 20
 
 extern unsigned char spaceship1_masked[];
@@ -302,20 +302,23 @@ int main() {
 
       if (overWriteLine == 1) {
         overWriteLine = 0;
-        clearVertline(sp1XPosPrev, sp1YPosPrev, 16);
-        clearVertline(sp1XPosPrev + 7, sp1YPosPrev, 16);
+        clearVertline(sp1XPosPrev, sp1YPosPrev, sp1YPosPrev-50);
+        clearVertline(sp1XPosPrev + 7, sp1YPosPrev, sp1YPosPrev-50);
       }
 
-      if ((fire == 1) && (countdownTillFireAvailable-- == 0)) {
-        vertline(sp1XPos, sp1YPos, 16);
-        vertline(sp1XPos + 7, sp1YPos, 16);
+      if ((fire == 1) && (countdownTillFireAvailable-- <= 0)) 
+	  {
+        vertline(sp1XPos, sp1YPos, sp1YPos-50);
+        vertline(sp1XPos + 7, sp1YPos, sp1YPos-50);
 
         bit_beep(5, 2000);
 
         unsigned char scoreIncrease = 0;
-        for (enemyCount = 0; enemyCount < level; enemyCount++) 
+        for (enemyCount = 0; enemyCount < level; enemyCount++) 	
 		{
-          if ((sp1XPos + 7 >= sp2XPos[enemyCount]) && (sp1XPos <= sp2XPos[enemyCount] + 7)) 
+          //if ((sp1XPos + 7 >= sp2XPos[enemyCount]) && (sp1XPos <= sp2XPos[enemyCount] + 7)) 
+		  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
+			  (sp1YPos > sp2YPos[enemyCount] ))
 		  {
             scoreIncrease = 1;
           }
