@@ -9,6 +9,7 @@
 // https://www.z88dk.org/wiki/doku.php?id=libnew:examples:sp1_ex1
 // link to how to draw lines etc:
 // https://github.com/z88dk/z88dk/blob/master/doc/ZXSpectrumZSDCCnewlib_03_SimpleGraphics.md
+//https://github.com/z88dk/z88dk/blob/master/doc/ZXSpectrumZSDCCnewlib_SP1_04_BiggerSprites.md
 
 #pragma output REGISTER_SP = 0xD000
 
@@ -46,7 +47,9 @@ IM2_DEFINE_ISR(isr) {}
 
 #define MAX_SPEED_SACESHIP_1 6
 #define FIRE_CUTTOUT 1
+#define MIN_ENEMY 1
 #define MAX_ENEMY 20
+
 
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
@@ -104,6 +107,13 @@ void clearVertline(unsigned char x0, unsigned char y0, unsigned char y1) {
   }
 }
 
+void printDebug(struct sp1_pss * pss, int debug) {
+  char buffer[8];
+  sprintf(buffer, "%06d", debug);
+  sp1_SetPrintPos(pss, 1, 30);
+  sp1_PrintString(pss, buffer);
+}
+
 void printScores(struct sp1_pss * pss, int score, int highScore, unsigned char lives, unsigned char level) {
   char buffer[8];
   sp1_SetPrintPos(pss, 0, 0);
@@ -135,7 +145,8 @@ void colourSpr(unsigned int count, struct sp1_cs * c) {
 
 int main() {
   unsigned char fire;
-  unsigned char enemyCount;
+  unsigned char enemyCount;  
+  short currentEnemyCount;
   int score;
   int highscore;
   unsigned char dead;
@@ -180,6 +191,13 @@ int main() {
     0, // sp1_update* must be consistent with x,y
     0 // visit function (set to zero)
   };
+  
+  // set all sprite memory pointers to NULL
+  for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
+  {		
+    enemyArray[enemyCount] = NULL;
+  }
+	
   highscore = 0;
   while (1) // main game loop
   {
@@ -193,9 +211,21 @@ int main() {
     colour = (INK_CYAN | PAPER_BLACK);
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
     sp1_IterateSprChar(spaceship1, colourSpr);
-
-    level = 1;
-    for (enemyCount = 0; enemyCount < level; enemyCount++) {
+	
+	for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
+	{
+	  if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
+	  enemyArray[enemyCount] = NULL;
+	}
+	currentEnemyCount = 0;
+	
+    level = 1; // just start at level 1 for now
+	
+    for (enemyCount = 0; enemyCount < level+MIN_ENEMY; enemyCount++) 
+	{
+	  if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
+	  enemyArray[enemyCount] = NULL;
+	  
       enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
       sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
       colour = (INK_RED | PAPER_BLACK);
@@ -204,8 +234,9 @@ int main() {
 
       sp2XPosInc[enemyCount] = 4;
       sp2YPosInc[enemyCount] = 4;
-      sp2XPos[enemyCount] = 100 + (enemyCount * 10);
-      sp2YPos[enemyCount] = 20 + (enemyCount * 10);
+      sp2XPos[enemyCount] = (unsigned char) (rand() * 100);
+	  sp2YPos[enemyCount] = (unsigned char) (rand() * 100);
+	  currentEnemyCount++;
     }
 
     // initialise everything else  
@@ -221,9 +252,11 @@ int main() {
     lives = 3;    
 
     printScores( & pss, score, highscore, lives, level);
+	
 
     while (dead == 0) {
-      printScores( & pss, score, highscore, lives, level);
+	  printScores( & pss, score, highscore, lives, level);
+      
 
       c = in_inkey();
 
@@ -251,29 +284,33 @@ int main() {
 
       sp1_MoveSprPix(spaceship1, & full_screen, 0, sp1XPos, sp1YPos);
 
-      for (enemyCount = 0; enemyCount < level; enemyCount++) {
-        sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
-        sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
+      for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
+	  {
+		if (enemyArray[enemyCount] != NULL)
+		{
+			sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
+			sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
 
-        sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
+			sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
+		
 
-        if (sp2XPos[enemyCount] <= -sp2XPosInc[enemyCount]) {
-          sp2XPosInc[enemyCount] = 4;
-          sp2XPos[enemyCount] = 0;
-        }
-        if (sp2XPos[enemyCount] >= 248 - sp2XPosInc[enemyCount]) {
-          sp2XPosInc[enemyCount] = -4;
-          sp2XPos[enemyCount] = 248;
-        }
-        if (sp2YPos[enemyCount] <= -sp2YPosInc[enemyCount] + 16) {
-          sp2YPosInc[enemyCount] = 4;
-          sp2YPos[enemyCount] = 16;
-        }
-        if (sp2YPos[enemyCount] >= 184 - sp2YPosInc[enemyCount]) {
-          sp2YPosInc[enemyCount] = -4;
-          sp2YPos[enemyCount] = 184;
-        }
-
+			if (sp2XPos[enemyCount] <= -sp2XPosInc[enemyCount]) {
+			  sp2XPosInc[enemyCount] = 4;
+			  sp2XPos[enemyCount] = 0;
+			}
+			if (sp2XPos[enemyCount] >= 248 - sp2XPosInc[enemyCount]) {
+			  sp2XPosInc[enemyCount] = -4;
+			  sp2XPos[enemyCount] = 248;
+			}
+			if (sp2YPos[enemyCount] <= -sp2YPosInc[enemyCount] + 16) {
+			  sp2YPosInc[enemyCount] = 4;
+			  sp2YPos[enemyCount] = 16;
+			}
+			if (sp2YPos[enemyCount] >= 184 - sp2YPosInc[enemyCount]) {
+			  sp2YPosInc[enemyCount] = -4;
+			  sp2YPos[enemyCount] = 184;
+			}
+		}
       }
       intrinsic_halt();
       sp1_UpdateNow();
@@ -314,38 +351,58 @@ int main() {
         bit_beep(5, 2000);
 
         unsigned char scoreIncrease = 0;
-        for (enemyCount = 0; enemyCount < level; enemyCount++) 	
+        for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
 		{
-          //if ((sp1XPos + 7 >= sp2XPos[enemyCount]) && (sp1XPos <= sp2XPos[enemyCount] + 7)) 
-		  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
-			  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos > sp2YPos[enemyCount]-50))
-		  {
-            scoreIncrease = 1;
-          }
-        }
-        if (scoreIncrease) {
+			if (enemyArray[enemyCount] != NULL)
+			{
+			  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
+				  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos > sp2YPos[enemyCount]-50))
+			  {
+				scoreIncrease = 1;
+				sp1_DeleteSpr(enemyArray[enemyCount]);				
+				enemyArray[enemyCount] = NULL;
+				currentEnemyCount--;
+			  }
+			}
+        }		
+        if (scoreIncrease) 
+		{
           score += 100;
           bit_beep(5, 1000);
           // new life every 10000 
-          if (score % 10000 == 0) {
+          if (score % 10000 == 0) 
+		  {
             lives++;
           }
           // level up
-          if ((score % 300 == 0) && (level < MAX_ENEMY))
+          if (score % 500 == 0) 
 		  {
-            enemyCount = level;
-            enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
-            sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-            colour = (INK_RED | PAPER_BLACK);
-            cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
-            sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-
-            sp2XPosInc[enemyCount] = -sp2XPosInc[0];
-            sp2YPosInc[enemyCount] = -sp2YPosInc[0];
-            sp2XPos[enemyCount] = 20;
-            sp2YPos[enemyCount] = 40;
-            level++;
-          }
+			level++;
+		  }
+			  
+			
+			for (enemyCount = 0; enemyCount< MAX_ENEMY; enemyCount++)
+			{
+				if ((enemyArray[enemyCount] == NULL)  && (currentEnemyCount <= level))
+				{
+					//sp1_DeleteSpr(enemyArray[enemyCount]);
+					enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);			
+					sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+					colour = (INK_RED | PAPER_BLACK);
+					cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
+					sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
+					
+					sp2XPosInc[enemyCount] = -sp2XPosInc[0];
+					sp2YPosInc[enemyCount] = -sp2YPosInc[0];
+					sp2XPos[enemyCount] = (unsigned char) (rand() * 100);
+					sp2YPos[enemyCount] = (unsigned char) (rand() * 100);					
+					
+					sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
+					
+					currentEnemyCount++;
+					printDebug(&pss, currentEnemyCount);
+				}
+			}  
           scoreIncrease = 0;
         }
 
