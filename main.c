@@ -53,6 +53,7 @@ IM2_DEFINE_ISR(isr) {}
 
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
+extern unsigned char bonusship_masked[];
 
 struct sp1_Rect full_screen = {
   0,
@@ -158,6 +159,7 @@ int main() {
   unsigned char c;
 
   struct sp1_ss * spaceship1;
+  struct sp1_ss * bonusship;
   struct sp1_ss * enemyArray[MAX_ENEMY];
 
   short sp1XPosInc;
@@ -172,6 +174,8 @@ int main() {
   unsigned char sp2XPos[MAX_ENEMY];
   unsigned char sp2YPos[MAX_ENEMY];
   unsigned char enemyEnabled[MAX_ENEMY];
+  unsigned char bonusEnabled;
+  unsigned char bonusshipPosX;
 
   memset(TABLE_ADDR, JUMP_POINT_HIGH_BYTE, 257);
   z80_bpoke(JUMP_POINT, 195);
@@ -200,6 +204,9 @@ int main() {
 	sp1_Initialize(SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
 	             INK_YELLOW | PAPER_BLACK, ' ');
 	sp1_Invalidate( & full_screen);	  
+	
+	bonusEnabled = 1;
+	
 	  for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
 	  {		
 		if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
@@ -229,6 +236,14 @@ int main() {
     colour = (INK_CYAN | PAPER_BLACK);
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
     sp1_IterateSprChar(spaceship1, colourSpr);
+
+    bonusship = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) bonusship_masked, 0);
+    sp1_AddColSpr(bonusship, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+    colour = (INK_GREEN | PAPER_BLACK);
+    cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
+    sp1_IterateSprChar(bonusship, colourSpr);	
+	bonusshipPosX = 0; // make it off screen until bonus
+	
 	
 	currentEnemyCount = 2;
 	
@@ -277,6 +292,21 @@ int main() {
       sp1YPos = sp1YPosInc + sp1YPos;
 
       sp1_MoveSprPix(spaceship1, & full_screen, 0, sp1XPos, sp1YPos);
+	  
+	  if (bonusEnabled > 1)
+	  {
+		  sp1_MoveSprPix(bonusship, & full_screen, 0, bonusshipPosX, 30);
+		  bonusshipPosX++;
+		  bonusEnabled--;
+	  }
+	  else if (bonusEnabled <= 1)
+	  {
+		  bonusshipPosX = 0;
+		  bonusEnabled=1;
+		  sp1_MoveSprPix(bonusship, & full_screen, 0, 0, 0);
+	  }
+	  
+	  
 
       for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
 	  {
@@ -372,9 +402,10 @@ int main() {
             lives++;
           }
           // level up
-          if (score % 1000 == 0) 
+          if (score % 500 == 0) 
 		  {
 			level++;
+			bonusEnabled = 255;
 		  }
 			  
 			if (currentEnemyCount <= 0) currentEnemyCount = 0;
