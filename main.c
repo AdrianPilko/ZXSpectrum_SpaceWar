@@ -122,7 +122,7 @@ void printScores(struct sp1_pss * pss, int score, int highScore, unsigned char l
   sp1_PrintString(pss, "         Lives   Level          ");
 
   sprintf(buffer, "%06d", score);
-  sp1_SetPrintPos(pss, 1, 1);
+  sp1_SetPrintPos(pss, 1, 0);
   sp1_PrintString(pss, buffer);
   sprintf(buffer, "%06d", highScore);
   sp1_SetPrintPos(pss, 1, 26);
@@ -219,13 +219,18 @@ int main() {
 		sp2XPos[0] = (unsigned char) (rand() * 100);
 		sp2YPos[0] = (unsigned char) (rand() * 100);
 		enemyEnabled[0] = 1;	
+		sp2XPosInc[1] = 4;
+		sp2YPosInc[1] = 4;
+		sp2XPos[1] = (unsigned char) (rand() * 100);
+		sp2YPos[1] = (unsigned char) (rand() * 100);
+		enemyEnabled[1] = 1;			
     spaceship1 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship1_masked, 0);
     sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
     colour = (INK_CYAN | PAPER_BLACK);
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
     sp1_IterateSprChar(spaceship1, colourSpr);
 	
-	currentEnemyCount = 0;
+	currentEnemyCount = 2;
 	
     level = 1; // just start at level 1 for now
 	
@@ -245,8 +250,7 @@ int main() {
 	
 
     while (dead == 0) {
-	  printScores( & pss, score, highscore, lives, level);
-      
+	  printScores( & pss, score, highscore, lives, level);      
 
       c = in_inkey();
 
@@ -346,7 +350,7 @@ int main() {
 			if (enemyEnabled[enemyCount] == 1)
 			{
 			  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
-				  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos > sp2YPos[enemyCount]-50))
+				  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos < sp2YPos[enemyCount]+50))
 			  {
 				scoreIncrease = 1;				
 				currentEnemyCount--;
@@ -368,15 +372,17 @@ int main() {
             lives++;
           }
           // level up
-          if (score % 500 == 0) 
+          if (score % 1000 == 0) 
 		  {
 			level++;
 		  }
 			  
+			if (currentEnemyCount <= 0) currentEnemyCount = 0;
 			
 			for (enemyCount = 0; enemyCount< MAX_ENEMY; enemyCount++)
 			{
-				if ((enemyEnabled[enemyCount] == 0)  && (currentEnemyCount <= level))
+				
+				if ((enemyEnabled[enemyCount] == 0)  && (currentEnemyCount < level+1))
 				{
 					enemyEnabled[enemyCount] = 1;				
 					sp2XPosInc[enemyCount] = -sp2XPosInc[0];
@@ -387,7 +393,7 @@ int main() {
 					sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
 					
 					currentEnemyCount++;
-					printDebug(&pss, currentEnemyCount);
+					//printDebug(&pss, currentEnemyCount);
 				}
 			}  
           scoreIncrease = 0;
@@ -418,10 +424,10 @@ int main() {
               highscore = score;
             }
 
-            sp1_SetPrintPos( & pss, 10, 10);
-            sp1_PrintString( & pss, "Game Over");
+            //sp1_SetPrintPos( & pss, 10, 10);
+            //sp1_PrintString( & pss, "Game Over");
 
-            for (short x = 0; x < 3; x++) {
+            for (short x = 0; x < 4; x++) {
               bit_beep(100, 500);
               bit_beep(100, 250);
             }
