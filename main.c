@@ -171,6 +171,7 @@ int main() {
   unsigned char sp1YPosPrev;
   unsigned char sp2XPos[MAX_ENEMY];
   unsigned char sp2YPos[MAX_ENEMY];
+  unsigned char enemyEnabled[MAX_ENEMY];
 
   memset(TABLE_ADDR, JUMP_POINT_HIGH_BYTE, 257);
   z80_bpoke(JUMP_POINT, 195);
@@ -192,53 +193,42 @@ int main() {
     0 // visit function (set to zero)
   };
   
-  // set all sprite memory pointers to NULL
-  for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
-  {		
-    enemyArray[enemyCount] = NULL;
-  }
-	
+
   highscore = 0;
   while (1) // main game loop
   {
-    sp1_Initialize(SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
-      INK_YELLOW | PAPER_BLACK, ' ');
-
-    sp1_Invalidate( & full_screen);
-
+	sp1_Initialize(SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
+	             INK_YELLOW | PAPER_BLACK, ' ');
+	sp1_Invalidate( & full_screen);	  
+	  for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
+	  {		
+		if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
+		enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
+		sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+		colour = (INK_RED | PAPER_BLACK);
+		cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
+		sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
+		sp2XPosInc[enemyCount] = 2;
+		sp2YPosInc[enemyCount] = 2;
+		sp2XPos[enemyCount] = 0;
+		sp2YPos[enemyCount] = 0;
+		enemyEnabled[enemyCount] = 0;
+	  }
+		sp2XPosInc[0] = 4;
+		sp2YPosInc[0] = 4;
+		sp2XPos[0] = (unsigned char) (rand() * 100);
+		sp2YPos[0] = (unsigned char) (rand() * 100);
+		enemyEnabled[0] = 1;	
     spaceship1 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship1_masked, 0);
     sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
     colour = (INK_CYAN | PAPER_BLACK);
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
     sp1_IterateSprChar(spaceship1, colourSpr);
 	
-	for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
-	{
-	  if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
-	  enemyArray[enemyCount] = NULL;
-	}
 	currentEnemyCount = 0;
 	
     level = 1; // just start at level 1 for now
 	
-    for (enemyCount = 0; enemyCount < level+MIN_ENEMY; enemyCount++) 
-	{
-	  if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
-	  enemyArray[enemyCount] = NULL;
-	  
-      enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
-      sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-      colour = (INK_RED | PAPER_BLACK);
-      cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
-      sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-
-      sp2XPosInc[enemyCount] = 4;
-      sp2YPosInc[enemyCount] = 4;
-      sp2XPos[enemyCount] = (unsigned char) (rand() * 100);
-	  sp2YPos[enemyCount] = (unsigned char) (rand() * 100);
-	  currentEnemyCount++;
-    }
-
     // initialise everything else  
     sp1XPos = 10;
     sp1YPos = 160;
@@ -286,7 +276,7 @@ int main() {
 
       for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
 	  {
-		if (enemyArray[enemyCount] != NULL)
+		if (enemyEnabled[enemyCount] == 1)
 		{
 			sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
 			sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
@@ -353,15 +343,18 @@ int main() {
         unsigned char scoreIncrease = 0;
         for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
 		{
-			if (enemyArray[enemyCount] != NULL)
+			if (enemyEnabled[enemyCount] == 1)
 			{
 			  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
 				  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos > sp2YPos[enemyCount]-50))
 			  {
-				scoreIncrease = 1;
-				sp1_DeleteSpr(enemyArray[enemyCount]);				
-				enemyArray[enemyCount] = NULL;
+				scoreIncrease = 1;				
 				currentEnemyCount--;
+				sp2XPosInc[enemyCount] = 4;
+				sp2YPosInc[enemyCount] = 4;
+				sp2XPos[enemyCount] = 0;
+				sp2YPos[enemyCount] = 0;
+				enemyEnabled[enemyCount] = 0;
 			  }
 			}
         }		
@@ -383,15 +376,9 @@ int main() {
 			
 			for (enemyCount = 0; enemyCount< MAX_ENEMY; enemyCount++)
 			{
-				if ((enemyArray[enemyCount] == NULL)  && (currentEnemyCount <= level))
+				if ((enemyEnabled[enemyCount] == 0)  && (currentEnemyCount <= level))
 				{
-					//sp1_DeleteSpr(enemyArray[enemyCount]);
-					enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);			
-					sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-					colour = (INK_RED | PAPER_BLACK);
-					cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
-					sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-					
+					enemyEnabled[enemyCount] = 1;				
 					sp2XPosInc[enemyCount] = -sp2XPosInc[0];
 					sp2YPosInc[enemyCount] = -sp2YPosInc[0];
 					sp2XPos[enemyCount] = (unsigned char) (rand() * 100);
