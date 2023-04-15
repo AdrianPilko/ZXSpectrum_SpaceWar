@@ -14,27 +14,16 @@
 #pragma output REGISTER_SP = 0xD000
 
 #include <arch/zx.h>
-
 #include <arch/zx/sp1.h>
-
 #include <intrinsic.h>
-
 #include <z80.h>
-
 #include <im2.h>
-
 #include <string.h>
-
 #include <input.h>
-
 #include <math.h>
-
 #include <stdlib.h>
-
 #include <stdio.h>
-
 #include <limits.h>
-
 #include <sound.h>
 
 IM2_DEFINE_ISR(isr) {}
@@ -44,12 +33,14 @@ IM2_DEFINE_ISR(isr) {}
 #define TABLE_ADDR             ((void*)(TABLE_HIGH_BYTE*UI_256))
 #define JUMP_POINT             ((unsigned char*)( (unsigned int)(JUMP_POINT_HIGH_BYTE*UI_256) + JUMP_POINT_HIGH_BYTE ))
 
-
 #define MAX_SPEED_SACESHIP_1 6
 #define FIRE_CUTTOUT 1
 #define MIN_ENEMY 1
 #define MAX_ENEMY 20
-
+#define BONUS_Y_POS 30
+#define SCORE_WHEN_BONUS_HIT 1000
+#define BONUS_COUNTDOWN_INITIAL 200
+#define LENGTH_OF_LAZER 50
 
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
@@ -120,7 +111,7 @@ void printScores(struct sp1_pss * pss, int score, int highScore, unsigned char l
   sp1_SetPrintPos(pss, 0, 0);
   sp1_PrintString(pss, "1UP Score--SPACE-WAR--High Score");
   sp1_SetPrintPos(pss, 1, 0);
-  sp1_PrintString(pss, "         Lives   Level          ");
+  sp1_PrintString(pss, "        Lives     Lev.          ");
 
   sprintf(buffer, "%06d", score);
   sp1_SetPrintPos(pss, 1, 0);
@@ -128,7 +119,7 @@ void printScores(struct sp1_pss * pss, int score, int highScore, unsigned char l
   sprintf(buffer, "%06d", highScore);
   sp1_SetPrintPos(pss, 1, 26);
   sp1_PrintString(pss, buffer);
-  sp1_SetPrintPos(pss, 1, 15);
+  sp1_SetPrintPos(pss, 1, 14);
   sprintf(buffer, "%02d", lives);
   sp1_PrintString(pss, buffer);
   sp1_SetPrintPos(pss, 1, 23);
@@ -146,7 +137,7 @@ void colourSpr(unsigned int count, struct sp1_cs * c) {
 
 int main() {
   unsigned char fire;
-  unsigned char enemyCount;  
+  unsigned char enemyCount;
   short currentEnemyCount;
   int score;
   int highscore;
@@ -176,6 +167,7 @@ int main() {
   unsigned char enemyEnabled[MAX_ENEMY];
   unsigned char bonusEnabled;
   unsigned char bonusshipPosX;
+  int bonusCountdown;
 
   memset(TABLE_ADDR, JUMP_POINT_HIGH_BYTE, 257);
   z80_bpoke(JUMP_POINT, 195);
@@ -196,41 +188,40 @@ int main() {
     0, // sp1_update* must be consistent with x,y
     0 // visit function (set to zero)
   };
-  
 
   highscore = 0;
   while (1) // main game loop
   {
-	sp1_Initialize(SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
-	             INK_YELLOW | PAPER_BLACK, ' ');
-	sp1_Invalidate( & full_screen);	  
-	
-	bonusEnabled = 1;
-	
-	  for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
-	  {		
-		if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
-		enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
-		sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
-		colour = (INK_RED | PAPER_BLACK);
-		cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
-		sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-		sp2XPosInc[enemyCount] = 2;
-		sp2YPosInc[enemyCount] = 2;
-		sp2XPos[enemyCount] = 0;
-		sp2YPos[enemyCount] = 0;
-		enemyEnabled[enemyCount] = 0;
-	  }
-		sp2XPosInc[0] = 4;
-		sp2YPosInc[0] = 4;
-		sp2XPos[0] = (unsigned char) (rand() * 100);
-		sp2YPos[0] = (unsigned char) (rand() * 100);
-		enemyEnabled[0] = 1;	
-		sp2XPosInc[1] = 4;
-		sp2YPosInc[1] = 4;
-		sp2XPos[1] = (unsigned char) (rand() * 100);
-		sp2YPos[1] = (unsigned char) (rand() * 100);
-		enemyEnabled[1] = 1;			
+    sp1_Initialize(SP1_IFLAG_MAKE_ROTTBL | SP1_IFLAG_OVERWRITE_TILES | SP1_IFLAG_OVERWRITE_DFILE,
+      INK_YELLOW | PAPER_BLACK, ' ');
+    sp1_Invalidate( & full_screen);
+
+    bonusEnabled = 0;
+    bonusCountdown = BONUS_COUNTDOWN_INITIAL;
+
+    for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
+      if (enemyArray[enemyCount] != NULL) sp1_DeleteSpr(enemyArray[enemyCount]);
+      enemyArray[enemyCount] = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship2_masked, 0);
+      sp1_AddColSpr(enemyArray[enemyCount], SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
+      colour = (INK_RED | PAPER_BLACK);
+      cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
+      sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
+      sp2XPosInc[enemyCount] = 2;
+      sp2YPosInc[enemyCount] = 2;
+      sp2XPos[enemyCount] = 0;
+      sp2YPos[enemyCount] = 0;
+      enemyEnabled[enemyCount] = 0;
+    }
+    sp2XPosInc[0] = 4;
+    sp2YPosInc[0] = 4;
+    sp2XPos[0] = (unsigned char)(rand() * 100);
+    sp2YPos[0] = (unsigned char)(rand() * 100);
+    enemyEnabled[0] = 1;
+    sp2XPosInc[1] = 4;
+    sp2YPosInc[1] = 4;
+    sp2XPos[1] = (unsigned char)(rand() * 100);
+    sp2YPos[1] = (unsigned char)(rand() * 100);
+    enemyEnabled[1] = 1;
     spaceship1 = sp1_CreateSpr(SP1_DRAW_MASK2LB, SP1_TYPE_2BYTE, 2, (int) spaceship1_masked, 0);
     sp1_AddColSpr(spaceship1, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
     colour = (INK_CYAN | PAPER_BLACK);
@@ -241,14 +232,13 @@ int main() {
     sp1_AddColSpr(bonusship, SP1_DRAW_MASK2RB, SP1_TYPE_2BYTE, 0, 0);
     colour = (INK_GREEN | PAPER_BLACK);
     cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
-    sp1_IterateSprChar(bonusship, colourSpr);	
-	bonusshipPosX = 0; // make it off screen until bonus
-	
-	
-	currentEnemyCount = 2;
-	
+    sp1_IterateSprChar(bonusship, colourSpr);
+    bonusshipPosX = 0; // make it off screen until bonus
+
+    currentEnemyCount = 2;
+
     level = 1; // just start at level 1 for now
-	
+
     // initialise everything else  
     sp1XPos = 10;
     sp1YPos = 160;
@@ -259,13 +249,10 @@ int main() {
 
     score = 0;
     dead = 0; /// dead = 1 not dead = 0;
-    lives = 3;    
-
-    printScores( & pss, score, highscore, lives, level);
-	
+    lives = 3;
 
     while (dead == 0) {
-	  printScores( & pss, score, highscore, lives, level);      
+      printScores( & pss, score, highscore, lives, level);
 
       c = in_inkey();
 
@@ -292,49 +279,42 @@ int main() {
       sp1YPos = sp1YPosInc + sp1YPos;
 
       sp1_MoveSprPix(spaceship1, & full_screen, 0, sp1XPos, sp1YPos);
-	  
-	  if (bonusEnabled > 1)
-	  {
-		  sp1_MoveSprPix(bonusship, & full_screen, 0, bonusshipPosX, 30);
-		  bonusshipPosX++;
-		  bonusEnabled--;
-	  }
-	  else if (bonusEnabled <= 1)
-	  {
-		  bonusshipPosX = 0;
-		  bonusEnabled=1;
-		  sp1_MoveSprPix(bonusship, & full_screen, 0, 0, 0);
-	  }
-	  
-	  
 
-      for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
-	  {
-		if (enemyEnabled[enemyCount] == 1)
-		{
-			sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
-			sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
+      if (bonusEnabled > 1) {
+        sp1_MoveSprPix(bonusship, & full_screen, 0, bonusshipPosX, BONUS_Y_POS);
+        bonusshipPosX += 5;
+        bonusEnabled--;
+      }
+      if (bonusEnabled == 0) {
+        bonusshipPosX = 0;
+        bonusEnabled = 0;
+        sp1_MoveSprPix(bonusship, & full_screen, 0, 255, 192);
+      }
 
-			sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
-		
+      for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
+        if (enemyEnabled[enemyCount] == 1) {
+          sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
+          sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
 
-			if (sp2XPos[enemyCount] <= -sp2XPosInc[enemyCount]) {
-			  sp2XPosInc[enemyCount] = 4;
-			  sp2XPos[enemyCount] = 0;
-			}
-			if (sp2XPos[enemyCount] >= 248 - sp2XPosInc[enemyCount]) {
-			  sp2XPosInc[enemyCount] = -4;
-			  sp2XPos[enemyCount] = 248;
-			}
-			if (sp2YPos[enemyCount] <= -sp2YPosInc[enemyCount] + 16) {
-			  sp2YPosInc[enemyCount] = 4;
-			  sp2YPos[enemyCount] = 16;
-			}
-			if (sp2YPos[enemyCount] >= 184 - sp2YPosInc[enemyCount]) {
-			  sp2YPosInc[enemyCount] = -4;
-			  sp2YPos[enemyCount] = 184;
-			}
-		}
+          sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
+
+          if (sp2XPos[enemyCount] <= -sp2XPosInc[enemyCount]) {
+            sp2XPosInc[enemyCount] = 4;
+            sp2XPos[enemyCount] = 0;
+          }
+          if (sp2XPos[enemyCount] >= 248 - sp2XPosInc[enemyCount]) {
+            sp2XPosInc[enemyCount] = -4;
+            sp2XPos[enemyCount] = 248;
+          }
+          if (sp2YPos[enemyCount] <= -sp2YPosInc[enemyCount] + 16) {
+            sp2YPosInc[enemyCount] = 4;
+            sp2YPos[enemyCount] = 16;
+          }
+          if (sp2YPos[enemyCount] >= 184 - sp2YPosInc[enemyCount]) {
+            sp2YPosInc[enemyCount] = -4;
+            sp2YPos[enemyCount] = 184;
+          }
+        }
       }
       intrinsic_halt();
       sp1_UpdateNow();
@@ -363,70 +343,80 @@ int main() {
 
       if (overWriteLine == 1) {
         overWriteLine = 0;
-        clearVertline(sp1XPosPrev, sp1YPosPrev, sp1YPosPrev-50);
-        clearVertline(sp1XPosPrev + 7, sp1YPosPrev, sp1YPosPrev-50);
+        clearVertline(sp1XPosPrev, sp1YPosPrev, sp1YPosPrev - LENGTH_OF_LAZER);
+        clearVertline(sp1XPosPrev + 7, sp1YPosPrev, sp1YPosPrev - LENGTH_OF_LAZER);
       }
+      //printDebug(&pss, bonusCountdown);
+      bonusCountdown--;
+      if (bonusCountdown <= 0) {
+        bonusEnabled = 255;
+        bonusCountdown = BONUS_COUNTDOWN_INITIAL;
+      }
+      // check if we've hit anything, including the bonus's
+      if ((fire == 1) && (countdownTillFireAvailable-- <= 0)) {
+        vertline(sp1XPos, sp1YPos, sp1YPos - LENGTH_OF_LAZER);
+        vertline(sp1XPos + 7, sp1YPos, sp1YPos - LENGTH_OF_LAZER);
 
-      if ((fire == 1) && (countdownTillFireAvailable-- <= 0)) 
-	  {
-        vertline(sp1XPos, sp1YPos, sp1YPos-50);
-        vertline(sp1XPos + 7, sp1YPos, sp1YPos-50);
-
-        bit_beep(5, 2000);
+        bit_beep(2, 3000);
 
         unsigned char scoreIncrease = 0;
-        for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 	
-		{
-			if (enemyEnabled[enemyCount] == 1)
-			{
-			  if ((sp1XPos >= sp2XPos[enemyCount]-7) && (sp1XPos <= sp2XPos[enemyCount] + 7) && 
-				  (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos < sp2YPos[enemyCount]+50))
-			  {
-				scoreIncrease = 1;				
-				currentEnemyCount--;
-				sp2XPosInc[enemyCount] = 4;
-				sp2YPosInc[enemyCount] = 4;
-				sp2XPos[enemyCount] = 0;
-				sp2YPos[enemyCount] = 0;
-				enemyEnabled[enemyCount] = 0;
-			  }
-			}
-        }		
-        if (scoreIncrease) 
-		{
+        if (bonusEnabled > 0) {
+          if ((sp1XPos >= bonusshipPosX - 7) && (sp1XPos <= bonusshipPosX + 7) &&
+            (sp1YPos > BONUS_Y_POS) && (sp1YPos < BONUS_Y_POS + LENGTH_OF_LAZER)) {
+            score += SCORE_WHEN_BONUS_HIT;
+            bonusshipPosX = 0;
+            bit_beep(100, 250);
+            bit_beep(100, 500);
+            bit_beep(100, 1000);
+            bonusshipPosX = 0;
+            bonusEnabled = 0;
+            sp1_MoveSprPix(bonusship, & full_screen, 0, 255, 192);
+          }
+        }
+        for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
+          if (enemyEnabled[enemyCount] == 1) {
+            if ((sp1XPos >= sp2XPos[enemyCount] - 7) && (sp1XPos <= sp2XPos[enemyCount] + 7) &&
+              (sp1YPos > sp2YPos[enemyCount]) && (sp1YPos < sp2YPos[enemyCount] + LENGTH_OF_LAZER)) {
+              scoreIncrease = 1;
+              currentEnemyCount--;
+              sp2XPosInc[enemyCount] = 4;
+              sp2YPosInc[enemyCount] = 4;
+              sp2XPos[enemyCount] = 0;
+              sp2YPos[enemyCount] = 0;
+              enemyEnabled[enemyCount] = 0;
+            }
+          }
+        }
+
+        if (scoreIncrease) {
           score += 100;
           bit_beep(5, 1000);
           // new life every 10000 
-          if (score % 10000 == 0) 
-		  {
+          if (score % 10000 == 0) {
             lives++;
           }
           // level up
-          if (score % 500 == 0) 
-		  {
-			level++;
-			bonusEnabled = 255;
-		  }
-			  
-			if (currentEnemyCount <= 0) currentEnemyCount = 0;
-			
-			for (enemyCount = 0; enemyCount< MAX_ENEMY; enemyCount++)
-			{
-				
-				if ((enemyEnabled[enemyCount] == 0)  && (currentEnemyCount < level+1))
-				{
-					enemyEnabled[enemyCount] = 1;				
-					sp2XPosInc[enemyCount] = -sp2XPosInc[0];
-					sp2YPosInc[enemyCount] = -sp2YPosInc[0];
-					sp2XPos[enemyCount] = (unsigned char) (rand() * 100);
-					sp2YPos[enemyCount] = (unsigned char) (rand() * 100);					
-					
-					sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
-					
-					currentEnemyCount++;
-					//printDebug(&pss, currentEnemyCount);
-				}
-			}  
+          if (score % 500 == 0) {
+            level++;
+          }
+
+          if (currentEnemyCount <= 0) currentEnemyCount = 0;
+
+          for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
+
+            if ((enemyEnabled[enemyCount] == 0) && (currentEnemyCount < level + 1)) {
+              enemyEnabled[enemyCount] = 1;
+              sp2XPosInc[enemyCount] = -sp2XPosInc[0];
+              sp2YPosInc[enemyCount] = -sp2YPosInc[0];
+              sp2XPos[enemyCount] = (unsigned char)(rand() * 100);
+              sp2YPos[enemyCount] = (unsigned char)(rand() * 100);
+
+              sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
+
+              currentEnemyCount++;
+              //printDebug(&pss, currentEnemyCount);
+            }
+          }
           scoreIncrease = 0;
         }
 
@@ -435,6 +425,9 @@ int main() {
         overWriteLine = 1;
         countdownTillFireAvailable = FIRE_CUTTOUT;
       }
+
+      printScores( & pss, score, highscore, lives, level);
+
       fire = 0;
 
       // check collision, this doesn't scale well to multiple enemys		
