@@ -39,7 +39,7 @@ IM2_DEFINE_ISR(isr) {}
 #define MAX_ENEMY 20
 #define BONUS_Y_POS 30
 #define SCORE_WHEN_BONUS_HIT 1000
-#define BONUS_COUNTDOWN_INITIAL 200
+#define BONUS_COUNTDOWN_INITIAL 150
 #define LENGTH_OF_LAZER 50
 #define MAX_SHOTS_AT_ANY_TIME  8
 
@@ -88,11 +88,22 @@ void printDebug(int debug)
 void printDebug2(int debug1, int debug2) 
 {
   char buffer[8];
-  sprintf(buffer, "%06d", debug1);
-  sp1_SetPrintPos(&pss, 1, 30);
+  sprintf(buffer, "X=%03d", debug1);
+  sp1_SetPrintPos(&pss, 3, 1);
   sp1_PrintString(&pss, buffer);
-  sprintf(buffer, "%06d", debug2);
-  sp1_SetPrintPos(&pss, 3, 30);
+  sprintf(buffer, "Y=%03d", debug2);  
+  sp1_SetPrintPos(&pss, 3, 10);
+  sp1_PrintString(&pss, buffer);  
+}
+
+void printDebug3(int debug1, int debug2) 
+{
+  char buffer[8];
+  sprintf(buffer, "X=%03d", debug1);
+  sp1_SetPrintPos(&pss, 4, 1);
+  sp1_PrintString(&pss, buffer);
+  sprintf(buffer, "Y=%03d", debug2);  
+  sp1_SetPrintPos(&pss, 4, 10);
   sp1_PrintString(&pss, buffer);  
 }
 
@@ -110,8 +121,7 @@ void plotShotAndMoveUp(t_ShotStruct * s)
   unsigned char i;
   unsigned char shotLen;
  
-   
-  if (s->shotLiveCountDown > 0)
+  if ((s->shotLiveCountDown > 0) && (s->YBotCoord > 5))
   {
     s->shotLiveCountDown = s->shotLiveCountDown - 1;
 
@@ -122,7 +132,7 @@ void plotShotAndMoveUp(t_ShotStruct * s)
       plot(s->XBotCoord, (s->YBotCoord)+i);
     }
       
-    if (s->clearLast  == 1)
+    if (s->clearLast == 1)
     {
       for (i = 0; i < shotLen; i++) 
       {
@@ -149,9 +159,7 @@ void plotShotAndMoveUp(t_ShotStruct * s)
       clearplot(s->XBotCoord, s->YBotCoord+i);      
       clearplot(s->XBotCoord, s->PrevYBotCoord+i);            
     }
-    //printDebug2(s->YBotCoord, s->PrevYBotCoord);
-  }
-  
+  }  
 }
 
 
@@ -284,14 +292,16 @@ int main() {
       colour = (INK_RED | PAPER_BLACK);
       cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
       sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-      sp2XPosInc[enemyCount] = 2;
-      sp2YPosInc[enemyCount] = 2;
+      sp2XPosInc[enemyCount] = 4;
+      sp2YPosInc[enemyCount] = 4;
+      sp2XPosInc[enemyCount] = 0;
+      sp2YPosInc[enemyCount] = 0;      
       sp2XPos[enemyCount] = 0;
       sp2YPos[enemyCount] = 0;
       enemyEnabled[enemyCount] = 0;
     }
     sp2XPosInc[0] = 4;
-    sp2YPosInc[0] = 4;
+    sp2YPosInc[0] = 4;   
     sp2XPos[0] = (unsigned char)(rand() * 100);
     sp2YPos[0] = (unsigned char)(rand() * 100);
     enemyEnabled[0] = 1;
@@ -360,7 +370,7 @@ int main() {
 
       if (bonusEnabled > 1) {
         sp1_MoveSprPix(bonusship, & full_screen, 0, bonusshipPosX, BONUS_Y_POS);
-        bonusshipPosX += 5;
+        bonusshipPosX += 1;
         bonusEnabled--;
       }
       if (bonusEnabled == 0) {
@@ -419,29 +429,20 @@ int main() {
       if (sp1YPosInc <= -MAX_SPEED_SACESHIP_1) sp1YPosInc = -MAX_SPEED_SACESHIP_1;
       if (sp1YPosInc >= MAX_SPEED_SACESHIP_1) sp1YPosInc = MAX_SPEED_SACESHIP_1;
 
-      //if (overWriteLine == 1) {
-       // overWriteLine = 0;
-        //clearVertline(sp1XPosPrev, sp1YPosPrev, sp1YPosPrev - LENGTH_OF_LAZER);
-        //clearVertline(sp1XPosPrev + 7, sp1YPosPrev, sp1YPosPrev - LENGTH_OF_LAZER);
-      //}
-      //printDebug(&pss, bonusCountdown);
       bonusCountdown--;
       if (bonusCountdown <= 0) {
         bonusEnabled = 255;
         bonusCountdown = BONUS_COUNTDOWN_INITIAL;
       }
       // check if we've hit anything, including the bonus's
-      if ((fire == 1)) //&& (countdownTillFireAvailable-- <= 0)) 
-      {
-        //vertline(sp1XPos, sp1YPos, sp1YPos - LENGTH_OF_LAZER);
-        //vertline(sp1XPos + 7, sp1YPos, sp1YPos - LENGTH_OF_LAZER);
-        
+      if (fire == 1)
+      {       
         if (shot[shotCounter].shotLiveCountDown == 0) // only start next shot if old one done
         {
           shot[shotCounter].XBotCoord = sp1XPos+3;
-          shot[shotCounter].YBotCoord = sp1YPos;
+          shot[shotCounter].YBotCoord = sp1YPos-5;
           shot[shotCounter].shotLen = 5;
-          shot[shotCounter].shotLiveCountDown = 20;
+          shot[shotCounter].shotLiveCountDown = 20;  
           shot[shotCounter].clearLast = 0;  // this is how many game loops need to pass before calling plotShotAndMoveUp
           bit_beep(5, 2000);
         }
@@ -452,9 +453,11 @@ int main() {
         unsigned char scoreIncrease = 0;
         for (unsigned char st = 0; st < MAX_SHOTS_AT_ANY_TIME; st++)
         {
-          if (bonusEnabled > 0) {
-            if ((shot[st].XBotCoord >= bonusshipPosX - 7) && (shot[st].XBotCoord <= bonusshipPosX + 7) &&
-              (shot[st].YBotCoord > BONUS_Y_POS) && (shot[st].YBotCoord < BONUS_Y_POS + LENGTH_OF_LAZER)) {
+          if (bonusEnabled > 0) 
+          {
+            if ((shot[st].XBotCoord-10 <= bonusshipPosX) && (shot[st].XBotCoord+10 >= bonusshipPosX) &&
+                (shot[st].YBotCoord-20 <= BONUS_Y_POS) && (shot[st].YBotCoord+20 >= BONUS_Y_POS))                
+            {
               score += SCORE_WHEN_BONUS_HIT;
               bonusshipPosX = 0;
               bit_beep(100, 250);
@@ -465,10 +468,13 @@ int main() {
               sp1_MoveSprPix(bonusship, & full_screen, 0, 255, 192);
             }
           }
-          for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
-            if (enemyEnabled[enemyCount] == 1) {
-              if ((shot[st].XBotCoord  >= sp2XPos[enemyCount] - 7) && (shot[st].XBotCoord  <= sp2XPos[enemyCount] + 7) &&
-                (shot[st].YBotCoord > sp2YPos[enemyCount]) && (shot[st].YBotCoord < sp2YPos[enemyCount]+20)) {
+          for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) 
+          {
+            if (enemyEnabled[enemyCount] == 1) 
+            {
+              if ((shot[st].XBotCoord-10 <= sp2XPos[enemyCount]) && (shot[st].XBotCoord+10 >= sp2XPos[enemyCount]) &&
+                  (shot[st].YBotCoord-20 <= sp2YPos[enemyCount]) && (shot[st].YBotCoord+20 >= sp2YPos[enemyCount]))
+              {
                 scoreIncrease = 1;
                 currentEnemyCount--;
                 sp2XPosInc[enemyCount] = 4;
@@ -480,6 +486,8 @@ int main() {
             }
           }
         }
+        //printDebug3(sp2XPos[1], sp2YPos[1]);
+        
         if (scoreIncrease) {
           score += 100;
           bit_beep(5, 1000);
