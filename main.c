@@ -13,6 +13,8 @@
 
 #pragma output REGISTER_SP = 0xD000
 
+//#define DEBUG_NO_MOVING_ENEMY
+
 #include <arch/zx.h>
 #include <arch/zx/sp1.h>
 #include <intrinsic.h>
@@ -138,7 +140,7 @@ void plotShotAndMoveUp(t_ShotStruct * s)
       {
         clearplot(s->XBotCoord, (s->PrevYBotCoord)+i);      
       }
-    }
+    } 
     
     if (s->YBotCoord >= 30)
     {
@@ -292,21 +294,34 @@ int main() {
       colour = (INK_RED | PAPER_BLACK);
       cmask = SP1_AMASK_INK & SP1_AMASK_PAPER;
       sp1_IterateSprChar(enemyArray[enemyCount], colourSpr);
-      sp2XPosInc[enemyCount] = 4;
-      sp2YPosInc[enemyCount] = 4;
+#ifdef DEBUG_NO_MOVING_ENEMY            
       sp2XPosInc[enemyCount] = 0;
-      sp2YPosInc[enemyCount] = 0;      
+      sp2YPosInc[enemyCount] = 0;
+#else      
+      sp2XPosInc[enemyCount] = 4;
+      sp2YPosInc[enemyCount] = 4;      
+#endif      
       sp2XPos[enemyCount] = 0;
       sp2YPos[enemyCount] = 0;
       enemyEnabled[enemyCount] = 0;
     }
+#ifdef DEBUG_NO_MOVING_ENEMY      
+    sp2XPosInc[0] = 0;
+    sp2YPosInc[0] = 0;   
+#else    
     sp2XPosInc[0] = 4;
-    sp2YPosInc[0] = 4;   
+    sp2YPosInc[0] = 4;       
+#endif    
     sp2XPos[0] = (unsigned char)(rand() * 100);
     sp2YPos[0] = (unsigned char)(rand() * 100);
     enemyEnabled[0] = 1;
+#ifdef DEBUG_NO_MOVING_ENEMY
+    sp2XPosInc[1] = 0;
+    sp2YPosInc[1] = 0;
+#else
     sp2XPosInc[1] = 4;
     sp2YPosInc[1] = 4;
+#endif    
     sp2XPos[1] = (unsigned char)(rand() * 100);
     sp2YPos[1] = (unsigned char)(rand() * 100);
     enemyEnabled[1] = 1;
@@ -381,9 +396,11 @@ int main() {
 
       for (enemyCount = 0; enemyCount < MAX_ENEMY; enemyCount++) {
         if (enemyEnabled[enemyCount] == 1) {
+#ifdef DEBUG_NO_MOVING_ENEMY
+#else          
           sp2XPos[enemyCount] = sp2XPosInc[enemyCount] + sp2XPos[enemyCount];
           sp2YPos[enemyCount] = sp2YPosInc[enemyCount] + sp2YPos[enemyCount];
-
+#endif
           sp1_MoveSprPix(enemyArray[enemyCount], & full_screen, 0, sp2XPos[enemyCount], sp2YPos[enemyCount]);
 
           if (sp2XPos[enemyCount] <= -sp2XPosInc[enemyCount]) {
@@ -455,8 +472,8 @@ int main() {
         {
           if (bonusEnabled > 0) 
           {
-            if ((shot[st].XBotCoord-10 <= bonusshipPosX) && (shot[st].XBotCoord+10 >= bonusshipPosX) &&
-                (shot[st].YBotCoord-20 <= BONUS_Y_POS) && (shot[st].YBotCoord+20 >= BONUS_Y_POS))                
+            if ((shot[st].XBotCoord-5 <= bonusshipPosX) && (shot[st].XBotCoord+5 >= bonusshipPosX) &&
+                (shot[st].YBotCoord-30 <= BONUS_Y_POS) && (shot[st].YBotCoord >= BONUS_Y_POS))                
             {
               score += SCORE_WHEN_BONUS_HIT;
               bonusshipPosX = 0;
@@ -472,13 +489,18 @@ int main() {
           {
             if (enemyEnabled[enemyCount] == 1) 
             {
-              if ((shot[st].XBotCoord-10 <= sp2XPos[enemyCount]) && (shot[st].XBotCoord+10 >= sp2XPos[enemyCount]) &&
-                  (shot[st].YBotCoord-20 <= sp2YPos[enemyCount]) && (shot[st].YBotCoord+20 >= sp2YPos[enemyCount]))
+              if ((shot[st].XBotCoord-5 <= sp2XPos[enemyCount]) && (shot[st].XBotCoord+5 >= sp2XPos[enemyCount]) &&
+                  (shot[st].YBotCoord-30 <= sp2YPos[enemyCount]) && (shot[st].YBotCoord >= sp2YPos[enemyCount]))
               {
                 scoreIncrease = 1;
                 currentEnemyCount--;
+#ifdef DEBUG_NO_MOVING_ENEMY
+                sp2XPosInc[enemyCount] = 0;
+                sp2YPosInc[enemyCount] = 0;
+#else
                 sp2XPosInc[enemyCount] = 4;
                 sp2YPosInc[enemyCount] = 4;
+#endif                
                 sp2XPos[enemyCount] = 0;
                 sp2YPos[enemyCount] = 0;
                 enemyEnabled[enemyCount] = 0;
