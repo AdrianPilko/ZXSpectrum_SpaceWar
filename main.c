@@ -43,7 +43,7 @@ IM2_DEFINE_ISR(isr) {}
 #define SCORE_WHEN_BONUS_HIT 1000
 #define BONUS_COUNTDOWN_INITIAL 150
 #define LENGTH_OF_LAZER 50
-#define MAX_SHOTS_AT_ANY_TIME  8
+#define MAX_SHOTS_AT_ANY_TIME  20
 
 extern unsigned char spaceship1_masked[];
 extern unsigned char spaceship2_masked[];
@@ -122,44 +122,41 @@ void plotShotAndMoveUp(t_ShotStruct * s)
 {
   unsigned char i;
   unsigned char shotLen;
+  i = 0;
  
-  if ((s->shotLiveCountDown > 0) && (s->YBotCoord > 5))
+  if (s->shotLiveCountDown > 0) //&& (s->YBotCoord > 5))
   {
     s->shotLiveCountDown = s->shotLiveCountDown - 1;
 
     shotLen = s->shotLen;
   
-    for (i = 0; i < shotLen; i++) 
+    //for (i = 0; i < shotLen; i++) 
     {
       plot(s->XBotCoord, (s->YBotCoord)+i);
     }
       
     if (s->clearLast == 1)
     {
-      for (i = 0; i < shotLen; i++) 
+    //  for (i = 0; i < shotLen; i++) 
       {
         clearplot(s->XBotCoord, (s->PrevYBotCoord)+i);      
       }
     } 
     
-    if (s->YBotCoord >= 30)
+    if (s->YBotCoord >= 24)
     {
       s->PrevYBotCoord = s->YBotCoord;
-      s->YBotCoord = (s->YBotCoord) - 10;
-    } else if (s->YBotCoord >= 10)
-    {
-      s->PrevYBotCoord = s->YBotCoord;
-      s->YBotCoord = (s->YBotCoord) - 10;
-    }
+      s->YBotCoord = (s->YBotCoord) - 8;
+    }         
   }
   else
   {
     s->shotLiveCountDown = 0;
     // on last time just clear it!
-    for (i = 0; i < shotLen; i++) 
+    //for (i = 0; i < shotLen; i++) 
     {
-      clearplot(s->XBotCoord, s->YBotCoord+i);      
-      clearplot(s->XBotCoord, s->PrevYBotCoord+i);            
+      clearplot(s->XBotCoord, s->YBotCoord);//+i);      
+      clearplot(s->XBotCoord, s->PrevYBotCoord);//+i);            
     }
   }  
 }
@@ -458,8 +455,8 @@ int main() {
         {
           shot[shotCounter].XBotCoord = sp1XPos+3;
           shot[shotCounter].YBotCoord = sp1YPos-5;
-          shot[shotCounter].shotLen = 5;
-          shot[shotCounter].shotLiveCountDown = 20;  
+          shot[shotCounter].shotLen = 10;
+          shot[shotCounter].shotLiveCountDown = (sp1YPos/8);  
           shot[shotCounter].clearLast = 0;  // this is how many game loops need to pass before calling plotShotAndMoveUp
           bit_beep(5, 2000);
         }
@@ -473,7 +470,7 @@ int main() {
           if (bonusEnabled > 0) 
           {
             if ((shot[st].XBotCoord-5 <= bonusshipPosX) && (shot[st].XBotCoord+5 >= bonusshipPosX) &&
-                (shot[st].YBotCoord-30 <= BONUS_Y_POS) && (shot[st].YBotCoord >= BONUS_Y_POS))                
+                (shot[st].YBotCoord-10 <= BONUS_Y_POS) && (shot[st].YBotCoord >= BONUS_Y_POS))                
             {
               score += SCORE_WHEN_BONUS_HIT;
               bonusshipPosX = 0;
@@ -490,14 +487,14 @@ int main() {
             if (enemyEnabled[enemyCount] == 1) 
             {
               if ((shot[st].XBotCoord-5 <= sp2XPos[enemyCount]) && (shot[st].XBotCoord+5 >= sp2XPos[enemyCount]) &&
-                  (shot[st].YBotCoord-30 <= sp2YPos[enemyCount]) && (shot[st].YBotCoord >= sp2YPos[enemyCount]))
+                  (shot[st].YBotCoord-10 <= sp2YPos[enemyCount]) && (shot[st].YBotCoord >= sp2YPos[enemyCount]))
               {
-                scoreIncrease = 1;
+                scoreIncrease++;
                 currentEnemyCount--;
 #ifdef DEBUG_NO_MOVING_ENEMY
                 sp2XPosInc[enemyCount] = 0;
                 sp2YPosInc[enemyCount] = 0;
-#else
+#else 
                 sp2XPosInc[enemyCount] = 4;
                 sp2YPosInc[enemyCount] = 4;
 #endif                
@@ -510,7 +507,7 @@ int main() {
         }
         //printDebug3(sp2XPos[1], sp2YPos[1]);
         
-        if (scoreIncrease) {
+        while (scoreIncrease-- > 0) {
           score += 100;
           bit_beep(5, 1000);
           // new life every 10000 
